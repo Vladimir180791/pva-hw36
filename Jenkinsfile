@@ -19,7 +19,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 git branch: 'main',
-                    url: 'https://github.com/Vladimir180791/opencart-autotests.git'
+                    url: 'https://github.com/Vladimir180791/pva-hw36.git'
             }
         }
         
@@ -73,14 +73,14 @@ pipeline {
             emailext (
                 subject: "SUCCESS: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
                 body: "Test execution completed successfully. Allure report: ${env.BUILD_URL}allure/",
-                to: "developer@company.com"
+                to: "pigal1807@yandex.ru"
             )
         }
         failure {
             emailext (
                 subject: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
                 body: "Test execution failed. Check console output: ${env.BUILD_URL}console",
-                to: "developer@company.com"
+                to: "pigal1807@yandex.ru"
             )
         }
     }
