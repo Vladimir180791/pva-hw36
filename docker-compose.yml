@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  jenkins:
+    image: jenkins/jenkins:lts
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    networks:
+      - test-network
+
+  selenoid:
+    image: aerokube/selenoid:latest-release
+    ports:
+      - "4444:4444"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./selenoid:/etc/selenoid
+    environment:
+      - OVERRIDE_VIDEO_OUTPUT_DIR=/tmp/videos
+    command: ["-conf", "/etc/selenoid/browsers.json", "-video-output-dir", "/tmp/videos", "-log-output-dir", "/tmp/logs"]
+    networks:
+      - test-network
+
+  mysql:
+    image: mysql:5.7
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=opencart
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  opencart:
+    image: opensourcefoundation/opencart:3.0.3-8
+    ports:
+      - "8081:80"
+    environment:
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASSWORD=root
+      - DB_DATABASE=opencart
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      timeout: 30s
+      retries: 5
+      start_period: 40s
+
+networks:
+  test-network:
+    driver: bridge
+
+volumes:
+  jenkins_home:

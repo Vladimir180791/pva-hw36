@@ -1,0 +1,77 @@
+name: Python QA Autotests CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        browser: [chrome, firefox]
+        python-version: [3.8, 3.9]
+    
+    services:
+      selenoid:
+        image: aerokube/selenoid:latest
+        ports:
+          - 4444:4444
+        options: --privileged
+        
+      opencart:
+        image: opensourcefoundation/opencart:latest
+        ports:
+          - 8080:80
+        env:
+          DB_HOST: mysql
+          DB_USER: root
+          DB_PASSWORD: root
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install allure-pytest
+        
+    - name: Setup Selenoid browsers
+      run: |
+        docker pull selenoid/chrome:latest
+        docker pull selenoid/firefox:latest
+        
+    - name: Run tests
+      run: |
+        python run_tests.py \
+          --selenoid-url http://localhost:4444/wd/hub \
+          --app-url http://localhost:8080 \
+          --browser ${{ matrix.browser }} \
+          --browser-version latest \
+          --threads 2
+      env:
+        SELENOID_URL: http://localhost:4444/wd/hub
+        APP_URL: http://localhost:8080
+        
+    - name: Generate Allure report
+      if: always()
+      run: |
+        allure generate reports/allure-results -o reports/allure-report --clean
+        
+    - name: Upload Allure report
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: allure-report-${{ matrix.browser }}-py${{ matrix.python-version }}
+        path: reports/allure-report/
+        retention-days: 30
